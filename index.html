@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>printlocal — Full-Stack Printing Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+
+    <!-- OpenStreetMap / Leaflet (Zero-API-Key Map Engine) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Google Maps JS SDK (GCP Project: rising-daylight-511306-k0) -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places" async defer></script>
+</head>
+<body>
+    <!-- Top Header / Navbar with Mode Switcher -->
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="#" class="brand">
+                <span class="brand-badge">⚡</span>
+                <span class="brand-name">printlocal</span>
+            </a>
+
+            <nav class="nav-mode-tabs">
+                <button class="nav-tab active" data-tab="customer">🛒 Print Portal</button>
+                <button class="nav-tab" data-tab="shopkeeper">🖨️ Partner Dashboard</button>
+                <button class="nav-tab" data-tab="onboarding">📝 Register Store</button>
+                <button class="nav-tab" data-tab="account">👤 Account & Support</button>
+            </nav>
+
+            <div class="nav-actions">
+                <span class="status-indicator online">● Network Active</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APP CONTAINER -->
+    <main class="app-main">
+
+        <!-- ========================================================= -->
+        <!-- TAB 1: CUSTOMER PRINT PORTAL -->
+        <!-- ========================================================= -->
+        <section id="tab-customer" class="tab-view active">
+            <!-- Hero Banner -->
+            <div class="portal-hero">
+                <div class="pill-tag"><span class="dot"></span> Instant Hyperlocal Printing</div>
+                <h1>Order document prints in seconds</h1>
+                <p>Pick a shop, navigate to location, scan store counter QR, and upload documents instantly.</p>
+            </div>
+
+            <div class="portal-container">
+                <!-- Progress Steps Bar -->
+                <div class="steps-bar">
+                    <div class="step-item active" data-step="1">
+                        <div class="step-num">1</div>
+                        <span class="step-title">Select & Navigate</span>
+                    </div>
+                    <div class="step-line"></div>
+                    <div class="step-item" data-step="2">
+                        <div class="step-num">2</div>
+                        <span class="step-title">Scan QR & Upload</span>
+                    </div>
+                    <div class="step-line"></div>
+                    <div class="step-item" data-step="3">
+                        <div class="step-num">3</div>
+                        <span class="step-title">Settings & Pay</span>
+                    </div>
+                    <div class="step-line"></div>
+                    <div class="step-item" data-step="4">
+                        <div class="step-num">4</div>
+                        <span class="step-title">Pickup Code</span>
+                    </div>
+                </div>
+
+                <!-- Portal Card Body -->
+                <div class="portal-card">
+                    <!-- Step 1: Select Shop (List + Map View + Directions) -->
+                    <div class="step-content active" id="step1">
+                        <div class="step-header-row">
+                            <div>
+                                <h3>Step 1: Choose a nearby print shop & get directions</h3>
+                                <p class="subtext">Select a shop to view its location on map, start navigation, or scan counter QR.</p>
+                            </div>
+                            <div class="view-toggle-btns">
+                                <button class="btn btn-sm btn-outline active" id="viewListBtn">📋 List View</button>
+                                <button class="btn btn-sm btn-outline" id="viewMapBtn">🗺️ Interactive Map View</button>
+                            </div>
+                        </div>
+
+                        <div class="search-box">
+                            <label for="shopSearchInput" style="display:none;">Search print shops</label>
+                            <input type="text" id="shopSearchInput" placeholder="Search by area, shop name, or pincode..." value="Indiranagar">
+                            <button class="btn btn-secondary" id="searchShopsBtn">🔍 Search</button>
+                        </div>
+
+                        <!-- Real Map Container with User Location & Registered Stores -->
+                        <div id="simulatedMapContainer" class="simulated-map" style="display: none;">
+                            <div class="map-overlay-title">📍 Interactive Map — Current Location & Registered Stores</div>
+
+                            <!-- Map Embed Box -->
+                            <div id="googleMap" class="google-map-box"></div>
+
+                            <div class="map-pin-grid" id="mapPinGrid" style="margin-top: 12px;">
+                                <!-- Pins populated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Selected Shop Action Panel -->
+                        <div class="selected-shop-panel" id="selectedShopPanel">
+                            <div class="panel-header">
+                                <div class="shop-badge">🏪 SELECTED SHOP</div>
+                                <h4 id="panelShopName">Express Print Hub — MG Road</h4>
+                                <p id="panelShopAddress">📍 100ft Road, near Metro Pillar 42, Bangalore • 0.3 km away • 7 min pickup</p>
+                            </div>
+                            <div class="panel-actions">
+                                <a id="getDirectionsBtn" href="#" target="_blank" class="btn btn-outline">🧭 Get Directions in Google Maps</a>
+                                <button class="btn btn-primary" id="openScanQrModalBtn">📷 Scan Shop Counter QR →</button>
+                            </div>
+                        </div>
+
+                        <!-- Shop Grid List -->
+                        <div class="shop-grid" id="shopList">
+                            <!-- Populated by JS -->
+                        </div>
+
+                        <div class="step-actions">
+                            <button class="btn btn-primary btn-lg" id="toStep2Btn">Proceed to Scan QR & Upload →</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: File Upload (Unlocked after Shop QR Verification) -->
+                    <div class="step-content" id="step2">
+                        <div class="verified-shop-banner" id="verifiedShopBanner">
+                            <span class="badge-tag">✅ COUNTER QR VERIFIED</span>
+                            <h4 id="verifiedShopTitle">Connected to Express Print Hub Counter</h4>
+                            <p>You can now upload your documents directly to this shop's printing queue.</p>
+                        </div>
+
+                        <h3>Step 2: Upload your document</h3>
+                        <p class="subtext">Supports PDF, DOCX, PNG, JPG, PPTX (Max 50MB).</p>
+
+                        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.ppt,.pptx" style="display:none;">
+
+                        <div class="file-uploader" id="dropZone">
+                            <div class="upload-icon">📁</div>
+                            <h4>Click anywhere or drag & drop your document here</h4>
+                            <p>or <button type="button" class="btn-link" id="browseBtn">browse files from your device</button></p>
+                            <span class="file-note">🔒 Auto-encrypted — deleted automatically 24h after pickup</span>
+                        </div>
+
+                        <div class="file-details-card" id="fileDetails" style="display: none;">
+                            <div class="file-info-row">
+                                <span class="file-badge-icon">📄</span>
+                                <div class="file-meta">
+                                    <h4 id="fileNameDisplay">Document.pdf</h4>
+                                    <p id="fileSizeDisplay">2.4 MB • <span id="pageCountDisplay">4 pages detected</span></p>
+                                </div>
+                                <button class="btn-remove" id="removeFileBtn">✕ Remove File</button>
+                            </div>
+                        </div>
+
+                        <div class="step-actions">
+                            <button class="btn btn-outline" id="backToStep1">← Back to Shop Selection</button>
+                            <button class="btn btn-primary btn-lg" id="toStep3Btn" disabled>Next: Print Options →</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Print Options & Summary -->
+                    <div class="step-content" id="step3">
+                        <h3>Step 3: Configure Print Settings & Checkout</h3>
+                        <p class="subtext">Customize paper type, color mode, page range, and copies.</p>
+
+                        <div class="options-layout">
+                            <div class="options-form">
+                                <div class="form-group">
+                                    <label>Paper Type</label>
+                                    <div class="radio-group" id="paperTypeGroup">
+                                        <label class="radio-card active">
+                                            <input type="radio" name="paperType" value="A4" checked>
+                                            <span class="radio-title">A4 Standard</span>
+                                            <span class="radio-desc">75 GSM White</span>
+                                        </label>
+                                        <label class="radio-card">
+                                            <input type="radio" name="paperType" value="A3">
+                                            <span class="radio-title">A3 Large</span>
+                                            <span class="radio-desc">Poster / CAD</span>
+                                        </label>
+                                        <label class="radio-card">
+                                            <input type="radio" name="paperType" value="Glossy">
+                                            <span class="radio-title">Glossy Photo</span>
+                                            <span class="radio-desc">180 GSM Finish</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Color Mode</label>
+                                    <div class="radio-group" id="colorModeGroup">
+                                        <label class="radio-card active">
+                                            <input type="radio" name="colorMode" value="Grayscale" checked>
+                                            <span class="radio-title">Black & White</span>
+                                            <span class="radio-desc">Standard Mono</span>
+                                        </label>
+                                        <label class="radio-card">
+                                            <input type="radio" name="colorMode" value="Color">
+                                            <span class="radio-title">Full Color</span>
+                                            <span class="radio-desc">High Definition</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group half">
+                                        <label for="copiesInput">Number of Copies</label>
+                                        <div class="counter-input">
+                                            <button class="counter-btn" id="minusCopyBtn">-</button>
+                                            <input type="number" id="copiesInput" value="1" min="1" max="100">
+                                            <button class="counter-btn" id="plusCopyBtn">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="form-group half">
+                                        <label for="sidesSelect">Print Sides</label>
+                                        <select id="sidesSelect" class="form-control">
+                                            <option value="Single">Single-Sided</option>
+                                            <option value="Double">Double-Sided (Duplex)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="pageRangeSelect">Page Selection Range</label>
+                                    <select id="pageRangeSelect" class="form-control">
+                                        <option value="ALL">All Pages in Document</option>
+                                        <option value="CUSTOM">Custom Page Range (e.g., 1-3, 5)</option>
+                                    </select>
+                                    <label for="customRangeInput" style="display:none;">Custom page range</label>
+                                    <input type="text" id="customRangeInput" class="form-control" placeholder="Enter pages, e.g. 1-3, 5" style="display: none; margin-top: 8px;">
+                                </div>
+                            </div>
+
+                            <!-- Order Summary Box -->
+                            <div class="order-summary-card">
+                                <h4>Order Summary</h4>
+                                <div class="summary-shop-info" id="summaryShopName">Express Print Hub</div>
+                                <div class="summary-line">
+                                    <span>File:</span>
+                                    <strong id="summaryFileName">Document.pdf</strong>
+                                </div>
+                                <div class="summary-line">
+                                    <span>Pages / Copies:</span>
+                                    <span><span id="summaryPages">4</span> pgs × <span id="summaryCopies">1</span> copies</span>
+                                </div>
+                                <div class="summary-line">
+                                    <span>Rate:</span>
+                                    <span id="summaryRate">₹2.00 / page</span>
+                                </div>
+                                <div class="summary-divider"></div>
+                                <div class="summary-line total-line">
+                                    <span>Total Payable</span>
+                                    <span class="total-price" id="summaryTotalAmount">₹8.00</span>
+                                </div>
+
+                                <button class="btn btn-primary btn-block btn-lg" id="payNowBtn">🔒 Pay & Place Order</button>
+                                <p class="secure-badge">💳 Instant UPI, Cards & NetBanking Supported</p>
+                            </div>
+                        </div>
+
+                        <div class="step-actions">
+                            <button class="btn btn-outline" id="backToStep2">← Back to Document Upload</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Verification Code & Live Tracking -->
+                    <div class="step-content" id="step4">
+                        <div class="success-banner">
+                            <span class="success-icon">🎉</span>
+                            <h3>Order Placed Successfully!</h3>
+                            <p>Show your pickup code or QR code at the print shop store counter.</p>
+                        </div>
+
+                        <div class="code-box">
+                            <span class="code-label">YOUR PICKUP VERIFICATION CODE</span>
+                            <div class="code-value" id="verificationCodeDisplay">PRNT-8492</div>
+                            <div class="qr-container" id="qrcode"></div>
+                            <div id="smsNotificationAlert" class="alert-box success" style="margin-top: 16px; text-align: center;">
+                                📲 Pickup PIN PRNT-8492 sent via SMS to +91 98765 43210 ✓
+                            </div>
+                        </div>
+
+                        <!-- Live Order Tracker -->
+                        <div class="tracker-card">
+                            <h4>Live Order Tracker</h4>
+                            <div class="tracker-timeline">
+                                <div class="tracker-step completed" id="trackPending">
+                                    <div class="dot">✓</div>
+                                    <span>Order Sent</span>
+                                </div>
+                                <div class="tracker-step active" id="trackPrinting">
+                                    <div class="dot">⏳</div>
+                                    <span>Printing in Progress</span>
+                                </div>
+                                <div class="tracker-step" id="trackReady">
+                                    <div class="dot">📦</div>
+                                    <span>Ready for Pickup</span>
+                                </div>
+                                <div class="tracker-step" id="trackCompleted">
+                                    <div class="dot">🏁</div>
+                                    <span>Completed</span>
+                                </div>
+                            </div>
+                            <div class="tracker-status-text" id="statusMessageText">
+                                Shopkeeper is printing your document right now. Est. pickup in <strong>2 minutes</strong>.
+                            </div>
+                        </div>
+
+                        <div class="step-actions center">
+                            <button class="btn btn-primary btn-lg" id="newOrderBtn">Print Another Document</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 2: SHOPKEEPER DASHBOARD (PARTNER MODE) -->
+        <!-- ========================================================= -->
+        <section id="tab-shopkeeper" class="tab-view">
+            <div class="dashboard-header">
+                <div>
+                    <span class="badge-tag">PARTNER FULFILLMENT MODE</span>
+                    <h2>Shopkeeper Order Management</h2>
+                </div>
+                <div class="shop-status-toggle">
+                    <span id="shopOnlineStatusText">● Store Online</span>
+                    <button class="btn btn-sm btn-outline" id="toggleShopOnlineBtn">Toggle Offline</button>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Code Verification Card -->
+                <div class="dash-card">
+                    <h3>🔑 Verify Customer Pickup Code</h3>
+                    <p class="subtext">Enter customer code (or 4-digit PIN e.g. 8492) to authorize print release.</p>
+                    <div class="form-row">
+                        <label for="verifyCodeInput" style="display:none;">Customer PIN</label>
+                        <input type="text" id="verifyCodeInput" class="form-control" placeholder="Enter PIN, e.g. 8492 or PRNT-8492">
+                        <button class="btn btn-primary" id="verifyCodeBtn">Verify & Release</button>
+                    </div>
+                    <div id="verifyResultAlert" class="alert-box" style="display: none; margin-top: 12px;"></div>
+
+                    <!-- Document Verification Inspector Box -->
+                    <div id="verifiedDocumentBox" class="verified-doc-card" style="display: none; margin-top: 16px;">
+                        <div class="verified-doc-header">
+                            <span class="badge-tag">✅ DOCUMENT VERIFIED FOR PRINTING</span>
+                            <h4 id="vDocFileName">Semester_Project_Report.pdf</h4>
+                        </div>
+                        <div class="verified-doc-details">
+                            <p><strong>📄 Print Specs:</strong> <span id="vDocSpecs">A4 • Grayscale • Single-Sided</span></p>
+                            <p><strong>🔢 Quantity:</strong> <span id="vDocPages">12 Pages × 1 Copy</span></p>
+                            <p><strong>💰 Total Amount Paid:</strong> <span id="vDocPrice">₹24.00 (Paid ✓)</span></p>
+                            <p><strong>🔑 Matched PIN Code:</strong> <span id="vDocCode">PRNT-8492</span></p>
+                        </div>
+                        <button class="btn btn-primary btn-block" id="releaseToPrinterBtn" style="margin-top: 12px;">🖨️ Send to Printer / Release Print Job</button>
+                    </div>
+                </div>
+
+                <!-- Live Metrics Summary -->
+                <div class="dash-card metrics-card">
+                    <h3>📊 Today's Metrics</h3>
+                    <div class="metrics-row">
+                        <div class="metric-box">
+                            <label>Total Revenue</label>
+                            <strong id="dashTotalRevenue">₹1,450.00</strong>
+                        </div>
+                        <div class="metric-box">
+                            <label>Completed Orders</label>
+                            <strong id="dashCompletedCount">42</strong>
+                        </div>
+                        <div class="metric-box">
+                            <label>Pages Printed</label>
+                            <strong id="dashPagesPrinted">184</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Incoming Queue Table -->
+            <div class="dash-card queue-card">
+                <div class="queue-header-row">
+                    <h3>📥 Incoming Print Queue (<span id="queueCount">2</span>)</h3>
+                    <button class="btn btn-sm btn-outline" id="refreshQueueBtn">🔄 Refresh Queue</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="queue-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>File Name</th>
+                                <th>Options</th>
+                                <th>Amount</th>
+                                <th>Code</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queueTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Counter QR Code Poster Section -->
+            <div class="dash-card counter-qr-card">
+                <h3>🖨️ Permanent Store Counter QR Poster</h3>
+                <p class="subtext">Print or display this QR code at your shop counter for walk-in customers to scan and upload documents.</p>
+                <div class="counter-qr-flex">
+                    <div class="qr-box" id="counterQrCodeBox"></div>
+                    <div class="counter-qr-details">
+                        <h4 id="counterShopTitle">Express Print Hub — MG Road</h4>
+                        <p>Scan to upload and print instantly without emailing or messaging files.</p>
+                        <div class="button-group">
+                            <button class="btn btn-secondary btn-sm" id="downloadCounterQrBtn">📥 Download QR Poster</button>
+                            <button class="btn btn-outline btn-sm" id="shareCounterQrBtn">🔗 Share QR Link</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 3: PARTNER ONBOARDING FLOW -->
+        <!-- ========================================================= -->
+        <section id="tab-onboarding" class="tab-view">
+            <div class="onboarding-container">
+                <div class="section-header">
+                    <span class="section-tag">For Print Shop Owners</span>
+                    <h2>Partner Registration (6-Step Flow)</h2>
+                    <p>Register your store on the printlocal network to receive online orders.</p>
+                </div>
+
+                <div class="onboard-card">
+                    <!-- Step Progress Indicator -->
+                    <div class="onboard-progress-bar">
+                        <div class="progress-fill" id="onboardProgressFill" style="width: 16.6%;"></div>
+                    </div>
+                    <div class="onboard-step-label" id="onboardStepLabel">Step 1 of 6: Mobile OTP Verification</div>
+
+                    <!-- Onboarding Steps -->
+                    <div id="onboardStepsContainer">
+                        <!-- Step 1: Mobile & OTP -->
+                        <div class="onboard-step active" id="ostep1">
+                            <h4>1. Mobile Number Verification</h4>
+                            <div class="form-group">
+                                <label for="obMobileInput">Mobile / WhatsApp Number</label>
+                                <input type="tel" id="obMobileInput" class="form-control" placeholder="+91 98765 43210" value="+91 98765 43210">
+                            </div>
+                            <div class="button-group" style="display: flex; gap: 10px; margin-bottom: 12px;">
+                                <button class="btn btn-whatsapp" id="sendWhatsAppOtpBtn">💬 Send WhatsApp 1-Click OTP</button>
+                                <button class="btn btn-outline" id="obSendOtpBtn">📲 Send SMS OTP</button>
+                            </div>
+
+                            <div id="obOtpBox" style="display: none; margin-top: 16px;">
+                                <div id="whatsappLogBanner" class="alert-box whatsapp" style="margin-bottom: 12px; display: none;"></div>
+                                <div class="form-group">
+                                    <label for="obOtpInput">Enter 6-Digit OTP Received on WhatsApp / SMS</label>
+                                    <input type="text" id="obOtpInput" class="form-control" placeholder="Enter 6-digit code">
+                                </div>
+                                <button class="btn btn-primary" id="obVerifyOtpBtn">Verify & Continue →</button>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Shop Details -->
+                        <div class="onboard-step" id="ostep2">
+                            <h4>2. Shop Name & GPS Address</h4>
+                            <div class="form-group">
+                                <label for="obShopName">Shop Name</label>
+                                <input type="text" id="obShopName" class="form-control" placeholder="e.g. Metro Digital Print Point">
+                            </div>
+                            <div class="form-group">
+                                <label for="obShopAddress">Full Street Address</label>
+                                <input type="text" id="obShopAddress" class="form-control" placeholder="100ft Road, Indiranagar, Bangalore">
+                            </div>
+                            <button class="btn btn-outline" id="obDetectGpsBtn">📍 Capture Current GPS Location (12.9716, 77.5946)</button>
+                            <br><br>
+                            <button class="btn btn-primary" id="obStep2Next">Continue to Aadhaar & Selfie KYC →</button>
+                        </div>
+
+                        <!-- Step 3: KYC -->
+                        <div class="onboard-step" id="ostep3">
+                            <h4>3. Aadhaar ID & Live Selfie KYC</h4>
+                            <p class="subtext">Upload Aadhaar Front/Back and take a live selfie.</p>
+                            <div class="kyc-upload-grid">
+                                <div class="kyc-box" id="kycFrontBox">
+                                    <span>📄 Aadhaar Front</span>
+                                    <input type="file" id="kycFrontInput" hidden>
+                                    <button class="btn btn-sm btn-outline" onclick="document.getElementById('kycFrontInput').click()">Upload Front</button>
+                                </div>
+                                <div class="kyc-box" id="kycBackBox">
+                                    <span>📄 Aadhaar Back</span>
+                                    <input type="file" id="kycBackInput" hidden>
+                                    <button class="btn btn-sm btn-outline" onclick="document.getElementById('kycBackInput').click()">Upload Back</button>
+                                </div>
+                                <div class="kyc-box" id="kycSelfieBox">
+                                    <span>📸 Live Selfie</span>
+                                    <button class="btn btn-sm btn-primary" id="takeSelfieBtn">Simulate Selfie</button>
+                                </div>
+                            </div>
+                            <br>
+                            <button class="btn btn-primary" id="obStep3Next">Continue to Bank Verification →</button>
+                        </div>
+
+                        <!-- Step 4: Bank Penny Drop -->
+                        <div class="onboard-step" id="ostep4">
+                            <h4>4. Bank Account Penny Drop Verification</h4>
+                            <div class="form-group">
+                                <label for="obAccountNo">Bank Account Number</label>
+                                <input type="text" id="obAccountNo" class="form-control" value="918273645012">
+                            </div>
+                            <div class="form-group">
+                                <label for="obIfsc">IFSC Code</label>
+                                <input type="text" id="obIfsc" class="form-control" value="HDFC0001234">
+                            </div>
+                            <button class="btn btn-secondary" id="obPennyDropBtn">Verify Bank via ₹1 Penny Drop</button>
+                            <div id="pennyDropSuccess" class="alert-box success" style="display: none; margin-top: 12px;">
+                                ✅ Penny Drop Successful! ₹1.00 deposited & bank verified.
+                            </div>
+                            <br><br>
+                            <button class="btn btn-primary" id="obStep4Next" disabled>Continue to Pricing →</button>
+                        </div>
+
+                        <!-- Step 5: Pricing Limits -->
+                        <div class="onboard-step" id="ostep5">
+                            <h4>5. Set Standard Print Rates</h4>
+                            <div class="form-row">
+                                <div class="form-group half">
+                                    <label for="obBwPrice">B&W Price / Page (Max ₹5)</label>
+                                    <input type="number" id="obBwPrice" class="form-control" value="2.0" step="0.5" max="5">
+                                </div>
+                                <div class="form-group half">
+                                    <label for="obColorPrice">Color Price / Page (Max ₹10)</label>
+                                    <input type="number" id="obColorPrice" class="form-control" value="5.0" step="0.5" max="10">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" id="obStep5Next">Continue to Store Photos →</button>
+                        </div>
+
+                        <!-- Step 6: Store Photos & Submit -->
+                        <div class="onboard-step" id="ostep6">
+                            <h4>6. Upload Storefront & Printer Photos</h4>
+                            <p class="subtext">Upload at least 3 photos of your store to publish on map.</p>
+                            <input type="file" id="obPhotoInput" multiple hidden>
+                            <button class="btn btn-outline" onclick="document.getElementById('obPhotoInput').click()">📷 Add Store Photos (Min 3 required)</button>
+                            <div id="obPhotoList" class="photo-tags-container" style="margin-top: 12px;"></div>
+                            <br><br>
+                            <button class="btn btn-primary btn-lg btn-block" id="obCompleteSubmitBtn">🎉 Complete Onboarding & Publish Store Live</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 4: ACCOUNT & HELP -->
+        <!-- ========================================================= -->
+        <section id="tab-account" class="tab-view">
+            <div class="account-container">
+                <div class="account-card profile-box">
+                    <div class="profile-avatar">👤</div>
+                    <div class="profile-details">
+                        <h3>Rajesh Kumar</h3>
+                        <p>+91 98765 43210 • rajesh@printlocal.in</p>
+                        <span class="badge-tag">Verified Customer</span>
+                    </div>
+                </div>
+
+                <!-- Support Helpline -->
+                <div class="account-card">
+                    <h3>📞 Customer Support Helpline</h3>
+                    <p class="subtext">Need help with an order or print issue?</p>
+                    <a href="tel:+919876543210" class="btn btn-primary btn-sm">Call Support: +91 98765 43210</a>
+                </div>
+
+                <!-- Feedback & Rating -->
+                <div class="account-card">
+                    <h3>⭐ App Feedback & Suggestions</h3>
+                    <p class="subtext">Rate your experience with printlocal.</p>
+                    <div class="star-rating" id="starRating">
+                        <span class="star" data-val="1">★</span>
+                        <span class="star" data-val="2">★</span>
+                        <span class="star" data-val="3">★</span>
+                        <span class="star" data-val="4">★</span>
+                        <span class="star active" data-val="5">★</span>
+                    </div>
+                    <label for="feedbackText" style="display:none;">Feedback text</label>
+                    <textarea id="feedbackText" class="form-control" rows="3" placeholder="Tell us how we can improve..."></textarea>
+                    <br>
+                    <button class="btn btn-primary" id="submitFeedbackBtn">Submit Feedback</button>
+                    <div id="feedbackThanks" class="alert-box success" style="display: none; margin-top: 12px;">
+                        Thank you for your feedback! ❤️
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- SCAN COUNTER QR CODE MODAL -->
+    <div class="modal-backdrop" id="scanQrModal" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>📷 Scan Shop Counter QR Code</h3>
+                <button class="btn-close" id="closeScanQrModalBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="scanner-frame">
+                    <div class="scanner-line"></div>
+                    <span class="scan-target-text">Position Shop Counter QR inside frame</span>
+                </div>
+                <div class="scanner-shop-info" id="scannerShopNameText">
+                    Target: Express Print Hub Counter
+                </div>
+                <button class="btn btn-primary btn-block btn-lg" id="confirmScanQrBtn">
+                    ✅ Connect & Verify Counter QR Code →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <div class="brand">
+                    <span class="brand-badge">⚡</span>
+                    <span class="brand-name">printlocal</span>
+                </div>
+                <p>Printing, without the runaround. Connecting local print shops with students, offices, and professionals.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Platform Navigation</h4>
+                <a href="#" class="nav-link-trigger" data-tab="customer">Print Portal</a>
+                <a href="#" class="nav-link-trigger" data-tab="shopkeeper">Partner Dashboard</a>
+                <a href="#" class="nav-link-trigger" data-tab="onboarding">Register Store</a>
+                <a href="#" class="nav-link-trigger" data-tab="account">Account & Support</a>
+            </div>
+            <div class="footer-links">
+                <h4>Android App</h4>
+                <p class="app-sub">Download our native Android app on Google Play.</p>
+                <a href="#" class="btn btn-outline btn-sm">📱 Get Android App</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2025 printlocal Technologies. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
