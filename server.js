@@ -1,17 +1,24 @@
 /**
- * printlocal Node.js Express Production Backend Server & Meta WhatsApp Cloud API Integration
+ * printlocal Node.js Express Production Backend Server & Embedded Fallback
  */
 
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const app = express();
 
 // Middlewares
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'website')));
+
+// Determine Static Directory Path
+const websiteDir = fs.existsSync(path.join(__dirname, 'website'))
+    ? path.join(__dirname, 'website')
+    : __dirname;
+
+app.use(express.static(websiteDir));
 
 // Configurable Meta WhatsApp Cloud API Credentials
 const WHATSAPP_CONFIG = {
@@ -20,7 +27,7 @@ const WHATSAPP_CONFIG = {
     templateName: process.env.WHATSAPP_TEMPLATE_NAME || 'otp_verification'
 };
 
-// In-memory Stores (For high-scale live production, plug Redis / Firestore / PostgreSQL)
+// In-memory Stores
 const otpStore = {};
 
 const ordersStore = [
@@ -99,7 +106,7 @@ const shopsStore = [
     }
 ];
 
-// Health Check
+// Health Check Endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'HEALTHY', timestamp: new Date().toISOString() });
 });
@@ -108,7 +115,7 @@ app.get('/health', (req, res) => {
 // 1. WHATSAPP OTP AUTHENTICATION ENDPOINTS
 // =========================================================
 
-// POST /api/send-otp - Sends WhatsApp OTP via Meta Cloud API
+// POST /api/send-otp
 app.post('/api/send-otp', async (req, res) => {
     try {
         const { phoneNumber } = req.body;
@@ -117,14 +124,12 @@ app.post('/api/send-otp', async (req, res) => {
         }
 
         const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Store OTP with 5-minute expiration
         otpStore[cleanPhone] = { otp, expiresAt: Date.now() + 5 * 60 * 1000 };
 
         console.log(`[Meta WhatsApp API] Sending OTP ${otp} to ${cleanPhone}...`);
 
-        // If credentials are live, invoke Meta Graph API endpoint
         if (WHATSAPP_CONFIG.phoneNumberId !== 'YOUR_PHONE_NUMBER_ID' && typeof fetch !== 'undefined') {
             const metaResponse = await fetch(
                 `https://graph.facebook.com/v17.0/${WHATSAPP_CONFIG.phoneNumberId}/messages`,
@@ -169,7 +174,7 @@ app.post('/api/send-otp', async (req, res) => {
     }
 });
 
-// POST /api/verify-otp - Validates user-entered WhatsApp OTP
+// POST /api/verify-otp
 app.post('/api/verify-otp', (req, res) => {
     const { phoneNumber, otp } = req.body;
     const cleanPhone = (phoneNumber || '').replace(/[^0-9]/g, '');
@@ -281,9 +286,47 @@ app.post('/api/orders/verify', (req, res) => {
     }
 });
 
-// Catch-all SPA route
+// Serve HTML page
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'website', 'index.html'));
+    const indexPath1 = path.join(__dirname, 'website', 'index.html');
+    const indexPath2 = path.join(__dirname, 'index.html');
+
+    if (fs.existsSync(indexPath1)) {
+        return res.sendFile(indexPath1);
+    } else if (fs.existsSync(indexPath2)) {
+        return res.sendFile(indexPath2);
+    } else {
+        // Self-contained Fallback Template if website/ folder was not included in GitHub commit
+        res.setHeader('Content-Type', 'text/html');
+        res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>printlocal — Live Server Online</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F9F9F6; color: #1B1B18; padding: 40px; text-align: center; }
+        .card { max-width: 600px; margin: 40px auto; background: #fff; padding: 32px; border-radius: 16px; border: 1px solid #E5E7EB; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .badge { background: #DCFCE7; color: #15803D; font-weight: 700; padding: 4px 12px; border-radius: 99px; font-size: 13px; }
+        h1 { margin-top: 16px; font-size: 28px; }
+        p { color: #6B7280; font-size: 15px; }
+        .btn { display: inline-block; background: #16A34A; color: #fff; font-weight: 700; padding: 12px 24px; border-radius: 12px; text-decoration: none; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <span class="badge">🚀 LIVE SERVER ONLINE</span>
+        <h1>printlocal Backend Server Running</h1>
+        <p>Your Node.js Express Server, REST APIs, and WhatsApp Cloud Gateway are running live on Render!</p>
+        <p><strong>Note:</strong> To display the full web portal frontend UI, please make sure to upload the <code>website</code> folder (containing <code>index.html</code>, <code>styles.css</code>, <code>app.js</code>) to your GitHub repository: <code>github.com/ianrashmi/printlocal</code>.</p>
+        <a href="https://github.com/ianrashmi/printlocal" target="_blank" class="btn">📂 Upload website/ folder to GitHub →</a>
+    </div>
+</body>
+</html>
+        `);
+    }
 });
 
 // Start Production Server
